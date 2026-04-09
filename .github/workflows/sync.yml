@@ -1,0 +1,27 @@
+name: Sync Sheet to Notion
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 30분마다 자동 실행
+  workflow_dispatch:          # 수동 실행도 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Python 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 동기화 실행
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: python sync.py
