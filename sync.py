@@ -1,77 +1,39 @@
-import os
-import requests
+name: Sync Sheet to Notion
 
-NOTION_TOKEN = os.environ["NOTION_TOKEN"]
-NOTION_PAGE_ID = os.environ["NOTION_PAGE_ID"]
-SHEET_ID = os.environ["SHEET_ID"]
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=1246889171"
+permissions:
+  contents: write
 
-def get_sheet_data():
-    response = requests.get(SHEET_URL)
-    response.encoding = "utf-8-sig"
-    lines = response.text.strip().split("\n")
-    rows = [line.split(",") for line in lines]
-    # 모든 행의 셀 수를 최대값으로 맞추기
-    max_cols = max(len(row) for row in rows)
-    for row in rows:
-        while len(row) < max_cols:
-            row.append("")
-    return rows, max_cols
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-def build_notion_table(rows, max_cols):
-    children = []
-    for row in rows:
-        cells = []
-        for cell in row:
-            cells.append([{"type": "text", "text": {"content": cell.strip()}}])
-        children.append({
-            "type": "table_row",
-            "table_row": {"cells": cells}
-        })
-    
-    table_block = {
-        "type": "table",
-        "table": {
-            "table_width": max_cols,
-            "has_column_header": True,
-            "has_row_header": False,
-            "children": children
-        }
-    }
-    return table_block
+      - name: Python 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-def clear_notion_page():
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Notion-Version": "2022-06-28"
-    }
-    url = f"https://api.notion.com/v1/blocks/{NOTION_PAGE_ID}/children"
-    res = requests.get(url, headers=headers)
-    blocks = res.json().get("results", [])
-    for block in blocks:
-        del_url = f"https://api.notion.com/v1/blocks/{block['id']}"
-        requests.delete(del_url, headers=headers)
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
 
-def update_notion_page(table_block):
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json"
-    }
-    url = f"https://api.notion.com/v1/blocks/{NOTION_PAGE_ID}/children"
-    body = {"children": [table_block]}
-    res = requests.patch(url, headers=headers, json=body)
-    print("노션 업데이트 결과:", res.status_code)
-    print(res.json())
+      - name: 동기화 실행
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python sync.py
 
-if __name__ == "__main__":
-    print("시트 데이터 읽는 중...")
-    rows, max_cols = get_sheet_data()
-    print(f"{len(rows)}행 읽음")
-    print("노션 페이지 초기화 중...")
-    clear_notion_page()
-    print("노션 페이지 업데이트 중...")
-    table = build_notion_table(rows, max_cols)
-    update_notion_page(table)
-    print("완료!")
+      - name: index.html 커밋 & 푸시
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Update seat map"
+          git push
