@@ -9,7 +9,7 @@ SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=cs
 
 def get_sheet_data():
     response = requests.get(SHEET_URL)
-    response.encoding = "utf-8"
+    response.encoding = "utf-8-sig"
     lines = response.text.strip().split("\n")
     rows = [line.split(",") for line in lines]
     # 모든 행의 셀 수를 최대값으로 맞추기
