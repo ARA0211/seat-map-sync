@@ -5,7 +5,7 @@ NOTION_TOKEN = os.environ["NOTION_TOKEN"]
 NOTION_PAGE_ID = os.environ["NOTION_PAGE_ID"]
 SHEET_ID = os.environ["SHEET_ID"]
 
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=1246889171"
 
 def get_sheet_data():
     response = requests.get(SHEET_URL)
